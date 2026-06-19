@@ -33,13 +33,19 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
+    <!-- Global Advanced Modal -->
     <div id="pawnModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4 py-6">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] mx-auto my-auto">
             <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
                 <h3 class="text-xl font-bold text-slate-800" id="modalTitle">Pawn Details</h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition p-2">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="modalBackBtn" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold transition">
+                        ⬅ Back
+                    </button>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition p-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
             </div>
             <div class="p-6 overflow-y-auto custom-scroll flex-1" id="modalContent"></div>
             <div class="px-6 py-4 border-t border-gray-200 bg-slate-50 flex justify-end">
@@ -48,8 +54,10 @@
         </div>
     </div>
 
+    <!-- Main Content Container with Defensive Layout Padding -->
     <div class="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 flex-1">
         
+        <!-- Header Controls -->
         <header class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 class="text-2xl sm:text-3xl font-bold text-slate-800" data-i18n="appTitle">Pawn Analytics System</h1>
@@ -65,6 +73,7 @@
             </div>
         </header>
 
+        <!-- Upload Zone -->
         <div id="uploadZone" class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -82,11 +91,14 @@
             <p id="uploadStatus" class="mt-2 text-sm text-red-600 hidden font-medium"></p>
         </div>
 
+        <!-- Dashboard Analytics Sections -->
         <div id="dashboardSection" class="hidden space-y-6">
             
+            <!-- Summary Metric Cards Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="summaryCards"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="secondarySummaryCards"></div>
 
+            <!-- Management Focus Filters -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col justify-center">
                     <h3 class="text-base sm:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2" data-i18n="monthlyIntTitle">
@@ -113,7 +125,9 @@
                 </div>
             </div>
 
+            <!-- Highly Custom Interactive Financial Timelines & Projections Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Interactive Chronological Timeline -->
                 <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 border-b border-slate-100 pb-3">
                         <div>
@@ -132,6 +146,7 @@
                     </div>
                 </div>
 
+                <!-- Accrued vs Collected Revenue Projections -->
                 <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
                     <div class="mb-4 border-b border-slate-100 pb-3">
                         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider" data-i18n="revenueProjTitle">Accrued vs. Collected Revenue</h3>
@@ -143,6 +158,7 @@
                 </div>
             </div>
 
+            <!-- Structural Data Charts Row -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
                     <h3 class="text-sm font-bold mb-4 text-center text-slate-700 uppercase tracking-wider" data-i18n="statusDist">Loan Book Distribution</h3>
@@ -158,6 +174,7 @@
                 </div>
             </div>
 
+            <!-- High-Scale Advanced Data Filter Table -->
             <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex flex-col lg:flex-row justify-between items-stretch lg:items-center mb-6 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div class="flex-1">
@@ -338,7 +355,6 @@
                     y = parts[2];
                     let p1 = parts[0].padStart(2, '0');
                     let p2 = parts[1].padStart(2, '0');
-                    // Verify month index vs day bounds logically
                     if (parseInt(p2, 10) <= 12) {
                         m = y + '-' + p2;
                         d = parseInt(p1, 10).toString();
@@ -398,6 +414,17 @@
             }
         }
 
+        // Global Copy Utility Engine
+        function copyTextToClipboard(text, badgeId) {
+            navigator.clipboard.writeText(text).then(() => {
+                const badge = document.getElementById(badgeId);
+                if (badge) {
+                    badge.classList.remove('hidden');
+                    setTimeout(() => badge.classList.add('hidden'), 1500);
+                }
+            }).catch(err => console.error('Failed to copy text: ', err));
+        }
+
         // Layout Inset File Target Bindings
         document.getElementById('toggleUploadBtn').addEventListener('click', () => {
             document.getElementById('uploadZone').classList.toggle('hidden');
@@ -447,7 +474,6 @@
             let today = new Date();
             document.getElementById('monthPicker').value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
 
-            // Initialize timeline year configuration filter values
             initTimelineYearOptions();
             buildDashboard();
         }
@@ -585,7 +611,6 @@
         }
 
         function renderCharts() {
-            // Build non-timeline structural analytics metrics
             let statusCounts = {}, weightByItem = {};
             let origPrin = 0, outPrin = 0, redPrin = 0;
             let globalAccrued = 0, globalCollected = 0;
@@ -615,7 +640,6 @@
             if(principalChartInstance) principalChartInstance.destroy();
             if(revenueChartInstance) revenueChartInstance.destroy();
 
-            // Status Distribution Donut
             statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), {
                 type: 'doughnut',
                 data: {
@@ -625,7 +649,6 @@
                 options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
             });
 
-            // Inventory Weight Donut
             let itemLabels = Object.keys(weightByItem);
             let itemWeightsInKyat = itemLabels.map(k => (weightByItem[k] / 128).toFixed(2));
             weightChartInstance = new Chart(document.getElementById('weightChart').getContext('2d'), {
@@ -637,7 +660,6 @@
                 options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
             });
 
-            // Principal Comparison Bar Chart
             principalChartInstance = new Chart(document.getElementById('principalChart').getContext('2d'), {
                 type: 'bar',
                 data: {
@@ -652,7 +674,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 11 } } } } }
             });
 
-            // Revenue Projections Comparison Chart
             revenueChartInstance = new Chart(document.getElementById('revenueChart').getContext('2d'), {
                 type: 'bar',
                 data: {
@@ -670,22 +691,18 @@
                 }
             });
 
-            // Build structural timeline visualization maps
             renderTimelineChart();
         }
 
-        // Deep-Zoom Drill Down Core Timeline Rendering Pipeline
         function renderTimelineChart() {
             if(timelineChartInstance) timelineChartInstance.destroy();
 
-            // Structure data mappings for selectable calculations
             let monthsLabels = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
             let displayLabels = [];
             let disbursalDataset = [];
             let redemptionDataset = [];
 
             if (currentTimelineView === 'year') {
-                // Initialize default 12 months array for selected filter year
                 displayLabels = monthsLabels.map(m => `${selectedTimelineYear}-${m}`);
                 let mapDisbursed = {}, mapRedeemed = {};
                 displayLabels.forEach(lbl => { mapDisbursed[lbl] = 0; mapRedeemed[lbl] = 0; });
@@ -709,7 +726,6 @@
                 redemptionDataset = displayLabels.map(l => mapRedeemed[l]);
 
             } else if (currentTimelineView === 'month') {
-                // Granular view zooming down into individual days of chosen target month
                 let maxDays = 31; 
                 let parts = selectedTimelineMonth.split('-');
                 let yearInt = parseInt(parts[0], 10);
@@ -770,7 +786,6 @@
                         x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
                     },
                     onClick: (e, elements) => {
-                        // Click chart asset point targets to trigger granular zoom logic maps
                         if (currentTimelineView === 'year' && elements.length > 0) {
                             const elementIndex = elements[0].index;
                             const targetMonthStr = displayLabels[elementIndex];
@@ -878,6 +893,7 @@
             const row = loansData.find(r => getCol(r, 'Ticket_ID') === ticketId);
             if(!row) return;
 
+            document.getElementById('modalBackBtn').classList.add('hidden');
             document.getElementById('modalTitle').innerText = `Ticket Analysis: ${ticketId}`;
 
             let yway = getWeightInYway(row);
@@ -897,12 +913,12 @@
                     </tr>
                 `).join('');
 
-            let customerId = getCol(row, 'ဖောက်သည် ID') || getCol(row, 'Customer_ID');
-            let custName = getCol(row, 'ဖောက်သည်အမည်') || getCol(row, 'Name');
+            let customerId = getCol(row, 'ဖောက်သည် ID') || getCol(row, 'Customer_ID') || 'N/A';
+            let custName = getCol(row, 'ဖောက်သည်အမည်') || getCol(row, 'Name') || 'Unknown';
             let relatedLoans = loansData.filter(r => {
                 let rId = getCol(r, 'ဖောက်သည် ID') || getCol(r, 'Customer_ID');
                 let rName = getCol(r, 'ဖောက်သည်အမည်') || getCol(r, 'Name');
-                return (customerId && rId === customerId) || (custName && rName === custName);
+                return (customerId !== 'N/A' && rId === customerId) || (custName !== 'Unknown' && rName === custName);
             });
             let custActiveLoans = relatedLoans.filter(r => getCol(r, 'Status').toLowerCase().includes('active')).length;
             let custTotalDebt = relatedLoans.reduce((sum, r) => {
@@ -913,14 +929,39 @@
             let overdueDetails = getOverdueDetails(row);
             let overdueMarkup = overdueDetails.isOverdue ? `<span class="text-red-600 font-black uppercase tracking-wider">${overdueDetails.label}</span>` : `<span class="text-green-600 font-bold">On Track</span>`;
 
+            // Clean string escapes for javascript interaction calls
+            let cleanCustName = custName.replace(/'/g, "\\'");
+            let cleanCustId = customerId.replace(/'/g, "\\'");
+
             const contentHtml = `
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     <div class="lg:col-span-1 space-y-6">
                         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 border-b pb-2">Customer Profile</h4>
+                            <div class="flex justify-between items-center border-b pb-2 mb-3">
+                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Customer Profile</h4>
+                                <span class="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Click Name to View Portfolio</span>
+                            </div>
                             <div class="space-y-2">
-                                <p class="text-sm"><span class="text-slate-500 w-20 inline-block">Name:</span> <span class="font-bold text-slate-800">${custName || '-'}</span></p>
-                                <p class="text-sm"><span class="text-slate-500 w-20 inline-block">ID / Phone:</span> <span class="font-medium text-slate-800">${customerId || getCol(row, 'ဖုန်းနံပါတ်') || '-'}</span></p>
+                                <div class="text-sm">
+                                    <span class="text-slate-500 w-16 inline-block">Name:</span> 
+                                    <div class="inline-flex items-center gap-1.5 group">
+                                        <span class="font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition" onclick="openCustomerProfileDetails('${cleanCustName}', '${cleanCustId}', '${ticketId}')">${custName}</span>
+                                        <button onclick="copyTextToClipboard('${cleanCustName}', 'copyNameBadge')" class="text-slate-400 hover:text-slate-600 transition p-0.5" title="Copy Name">
+                                            📋
+                                        </button>
+                                        <span id="copyNameBadge" class="hidden bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm">Copied!</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm">
+                                    <span class="text-slate-500 w-16 inline-block">ID:</span> 
+                                    <div class="inline-flex items-center gap-1.5 group">
+                                        <span class="font-medium text-slate-800">${customerId}</span>
+                                        <button onclick="copyTextToClipboard('${cleanCustId}', 'copyIdBadge')" class="text-slate-400 hover:text-slate-600 transition p-0.5" title="Copy ID">
+                                            📋
+                                        </button>
+                                        <span id="copyIdBadge" class="hidden bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm">Copied!</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="mt-4 pt-3 border-t border-slate-200 bg-white p-3 rounded shadow-sm">
                                 <p class="text-xs font-bold text-indigo-500 uppercase mb-2">Portfolio Standing</p>
@@ -1002,10 +1043,136 @@
             document.getElementById('pawnModal').classList.remove('hidden');
         }
 
+        // Deep Customer Portfolio Drill-down Dashboard Controller
+        function openCustomerProfileDetails(custName, customerId, originTicketId) {
+            // Reconfigure navigation buttons for recursive tracking routing
+            const backBtn = document.getElementById('modalBackBtn');
+            backBtn.classList.remove('hidden');
+            backBtn.onclick = () => openModal(originTicketId);
+
+            document.getElementById('modalTitle').innerText = `Customer Portfolio: ${custName}`;
+
+            // Segment total structural items maps for filtering
+            let relatedLoans = loansData.filter(r => {
+                let rId = getCol(r, 'ဖောက်သည် ID') || getCol(r, 'Customer_ID');
+                let rName = getCol(r, 'ဖောက်သည်အမည်') || getCol(r, 'Name');
+                return (customerId !== 'N/A' && rId === customerId) || (custName !== 'Unknown' && rName === custName);
+            });
+
+            let activeCount = 0, activeAmount = 0;
+            let redeemedCount = 0, redeemedAmount = 0;
+            let rowsHtml = '';
+
+            relatedLoans.forEach(row => {
+                let status = getCol(row, 'Status');
+                let amt = parseCurrency(getCol(row, 'Pawn_money_amount'));
+                let tId = getCol(row, 'Ticket_ID');
+                let item = getCol(row, 'ပစ္စည်းအမျိုးအစားများ') || getCol(row, 'Item') || '-';
+                let dateIn = getCol(row, 'Pawn_date_in') || '-';
+
+                if (status.toLowerCase().includes('active')) {
+                    activeCount++;
+                    activeAmount += amt;
+                } else if (status.toLowerCase().includes('redeem')) {
+                    redeemedCount++;
+                    redeemedAmount += amt;
+                }
+
+                let overdueDetails = getOverdueDetails(row);
+                let statusColor = "bg-slate-100 text-slate-700";
+                if(status.toLowerCase().includes('active')) statusColor = "bg-blue-100 text-blue-800";
+                if(status.toLowerCase().includes('redeem')) statusColor = "bg-emerald-100 text-emerald-800";
+                if(overdueDetails.isOverdue) statusColor = overdueDetails.classes;
+
+                rowsHtml += `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer" onclick="openModal('${tId}')">
+                            ${tId}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-600 font-medium">${item}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-500">${dateIn}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-700">${amt.toLocaleString()} Ks</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                            <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 rounded-full font-medium ${statusColor}">
+                                ${overdueDetails.isOverdue ? overdueDetails.label : status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            const contentHtml = `
+                <div class="space-y-6">
+                    <!-- Copyable Header Panel -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Customer Name:</span>
+                                <span class="font-black text-slate-800 text-base">${custName}</span>
+                                <button onclick="copyTextToClipboard('${custName.replace(/'/g, "\\'")}', 'innerCopyNameBadge')" class="text-slate-400 hover:text-slate-600 transition p-0.5" title="Copy Name">📋</button>
+                                <span id="innerCopyNameBadge" class="hidden bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm">Copied!</span>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Account ID Reference:</span>
+                                <span class="font-mono font-bold text-slate-600 text-sm">${customerId}</span>
+                                <button onclick="copyTextToClipboard('${customerId.replace(/'/g, "\\'")}', 'innerCopyIdBadge')" class="text-slate-400 hover:text-slate-600 transition p-0.5" title="Copy ID">📋</button>
+                                <span id="innerCopyIdBadge" class="hidden bg-slate-800 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm">Copied!</span>
+                            </div>
+                        </div>
+                        <div class="text-[11px] bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg text-indigo-700 font-medium max-w-xs">
+                            💡 Click on any <b>Ticket ID</b> in the details grid below to load its independent timeline transactions analysis.
+                        </div>
+                    </div>
+
+                    <!-- Split Exposure Metric Summaries -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl shadow-sm">
+                            <p class="text-xs text-blue-800 font-bold uppercase tracking-wider">Active Inventory Breakdown</p>
+                            <div class="flex justify-between items-baseline mt-2">
+                                <span class="text-2xl font-black text-blue-700">${activeCount} <span class="text-xs font-normal text-blue-500">Items</span></span>
+                                <span class="text-lg font-bold text-blue-900">${activeAmount.toLocaleString()} Ks</span>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl shadow-sm">
+                            <p class="text-xs text-emerald-800 font-bold uppercase tracking-wider">Redeemed Ledger Historical Balance</p>
+                            <div class="flex justify-between items-baseline mt-2">
+                                <span class="text-2xl font-black text-emerald-700">${redeemedCount} <span class="text-xs font-normal text-emerald-500">Items</span></span>
+                                <span class="text-lg font-bold text-emerald-900">${redeemedAmount.toLocaleString()} Ks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Asset Grid Table Tracking Details -->
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Comprehensive Item Ledger Grid</h4>
+                        </div>
+                        <div class="overflow-x-auto custom-scroll max-h-64">
+                            <table class="min-w-full divide-y divide-gray-200 text-left">
+                                <thead class="bg-slate-50 font-bold text-slate-500 text-xs uppercase tracking-wide sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Ticket ID</th>
+                                        <th class="px-4 py-2.5">Item Type</th>
+                                        <th class="px-4 py-2.5">Date In</th>
+                                        <th class="px-4 py-2.5">Amount</th>
+                                        <th class="px-4 py-2.5">Current Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100 text-slate-700">
+                                    ${rowsHtml ? rowsHtml : `<tr><td colspan="5" class="text-center py-6 text-sm text-slate-400">No cross-referenced records matching this profile.</td></tr>`}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modalContent').innerHTML = contentHtml;
+        }
+
         function closeModal() { document.getElementById('pawnModal').classList.add('hidden'); }
         document.getElementById('pawnModal').addEventListener('click', function(e) { if(e.target === this) closeModal(); });
 
-        // Initialize translations mapping configurations automatically on launch
         applyTranslations();
     </script>
 </body>
