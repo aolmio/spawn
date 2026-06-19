@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Pawn Shop Dashboard - Enterprise Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Safe Area Padding Protection for Notch / Dynamic Island / Punch Holes */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
+        .table-container { max-height: 500px; overflow-y: auto; }
+        th { position: sticky; top: 0; background-color: #f3f4f6; z-index: 10; }
+        
+        /* Custom layout scrollbars */
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* Smooth zoom interaction animations */
+        .interactive-chart-container {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <div id="pawnModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4 py-6">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] mx-auto my-auto">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+                <h3 class="text-xl font-bold text-slate-800" id="modalTitle">Pawn Details</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scroll flex-1" id="modalContent"></div>
+            <div class="px-6 py-4 border-t border-gray-200 bg-slate-50 flex justify-end">
+                <button onclick="closeModal()" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-medium hover:bg-gray-300 transition" data-i18n="close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 flex-1">
+        
+        <header class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800" data-i18n="appTitle">Pawn Analytics System</h1>
+                <p class="text-slate-500 text-sm mt-1" data-i18n="appDesc">Advanced Financial & Asset Insights.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <button id="langToggleBtn" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 transition flex-1 md:flex-initial text-center">
+                    🌐 မြန်မာစာ / ENG
+                </button>
+                <button id="toggleUploadBtn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 transition flex items-center justify-center gap-2 flex-1 md:flex-initial">
+                    <span data-i18n="setupBtn">⚙️ Setup Data Inputs</span>
+                </button>
+            </div>
+        </header>
+
+        <div id="uploadZone" class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2" data-i18n="loanFileLabel">1. Pawn Loans CSV</label>
+                    <input type="file" id="loansFile" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2" data-i18n="txnFileLabel">2. Transactions CSV (Required for Full Ledger)</label>
+                    <input type="file" id="txnsFile" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
+                </div>
+            </div>
+            <button id="processBtn" class="mt-6 bg-blue-600 text-white px-8 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition w-full md:w-auto shadow-md" data-i18n="processBtn">
+                Process Data
+            </button>
+            <p id="uploadStatus" class="mt-2 text-sm text-red-600 hidden font-medium"></p>
+        </div>
+
+        <div id="dashboardSection" class="hidden space-y-6">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="summaryCards"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="secondarySummaryCards"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col justify-center">
+                    <h3 class="text-base sm:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2" data-i18n="monthlyIntTitle">
+                        <span>📅</span> Monthly Interest Earnings (Real Cash Flow)
+                    </h3>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div class="w-full sm:w-auto">
+                            <label class="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-1" data-i18n="selectMonth">Select Month</label>
+                            <input type="month" id="monthPicker" class="w-full sm:w-auto px-4 py-2 rounded-md border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700">
+                        </div>
+                        <div class="sm:ml-auto text-left sm:text-right">
+                            <p class="text-sm text-blue-600 font-medium" data-i18n="realCashCol">Real Cash Collected</p>
+                            <p id="monthlyInterestResult" class="text-2xl sm:text-3xl font-black text-blue-700">0 Ks</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-red-200 border-l-4 border-l-red-500 flex flex-col justify-center items-center text-center">
+                    <h3 class="text-lg font-bold text-slate-800 mb-2" data-i18n="attentionTitle">Attention Required</h3>
+                    <p class="text-sm text-slate-500 mb-4" data-i18n="attentionDesc">Quickly filter all pawns that have exceeded their due dates.</p>
+                    <button id="toggleOverdueBtn" class="bg-red-50 text-red-600 border border-red-200 px-6 py-2 rounded-lg font-bold hover:bg-red-100 hover:text-red-700 transition w-full shadow-sm" data-i18n="showOverdue">
+                        🚨 Show Overdue Pawns
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 border-b border-slate-100 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider" data-i18n="chronologicalTitle">Disbursal vs. Redemptions (Timeline)</h3>
+                            <p class="text-xs text-slate-400 mt-0.5" id="timelineHelpText" data-i18n="timelineHint">Click on any month to view daily granular data breakdown</p>
+                        </div>
+                        <div class="flex items-center gap-2 self-stretch sm:self-auto">
+                            <button id="backToYearBtn" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-2.5 py-1.5 rounded font-bold border border-slate-300 transition">
+                                ⬅ <span data-i18n="backBtn">Back to Year</span>
+                            </button>
+                            <select id="timelineYearSelect" class="bg-white border border-slate-300 rounded text-xs px-2 py-1.5 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-initial"></select>
+                        </div>
+                    </div>
+                    <div class="interactive-chart-container h-64 sm:h-72 w-full flex-1">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                    <div class="mb-4 border-b border-slate-100 pb-3">
+                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider" data-i18n="revenueProjTitle">Accrued vs. Collected Revenue</h3>
+                        <p class="text-xs text-slate-400 mt-0.5" data-i18n="revenueDesc">Pipeline comparison of pending flat projections against real cash flows</p>
+                    </div>
+                    <div class="h-64 sm:h-72 w-full flex-1">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold mb-4 text-center text-slate-700 uppercase tracking-wider" data-i18n="statusDist">Loan Book Distribution</h3>
+                    <div class="relative h-56 w-full flex justify-center"><canvas id="statusChart"></canvas></div>
+                </div>
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold mb-4 text-center text-slate-700 uppercase tracking-wider" data-i18n="inventoryWeight">Inventory Weight (Kyat)</h3>
+                    <div class="relative h-56 w-full flex justify-center"><canvas id="weightChart"></canvas></div>
+                </div>
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 md:col-span-2 lg:col-span-1">
+                    <h3 class="text-sm font-bold mb-4 text-center text-slate-700 uppercase tracking-wider" data-i18n="prinChart">Outstanding vs Redeemed</h3>
+                    <div class="relative h-56 w-full"><canvas id="principalChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col lg:flex-row justify-between items-stretch lg:items-center mb-6 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1" data-i18n="searchLabel">Search Records</label>
+                        <input type="text" id="searchInput" placeholder="Search ID, Name, Phone..." class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-full bg-white text-sm">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1" data-i18n="filterStatus">Filter Status</label>
+                            <select id="statusFilter" class="px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full">
+                                <option value="">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="redeem">Redeemed</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1" data-i18n="filterItem">Filter Item Type</label>
+                            <select id="itemTypeFilter" class="px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full">
+                                <option value="">All Item Types</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1" data-i18n="sortData">Sort Data By</label>
+                            <select id="sortByInput" class="px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full">
+                                <option value="">Default Ordering</option>
+                                <option value="ticket-asc">Ticket ID (A ➔ Z)</option>
+                                <option value="ticket-desc">Ticket ID (Z ➔ A)</option>
+                                <option value="date-newest">Date In (Newest First)</option>
+                                <option value="date-oldest">Date In (Oldest First)</option>
+                                <option value="amount-highest">Amount (Highest First)</option>
+                                <option value="amount-lowest">Amount (Lowest First)</option>
+                                <option value="overdue-highest">Overdue Days (Highest)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-container rounded-lg border border-slate-200 custom-scroll overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-left">
+                        <thead>
+                            <tr>
+                                <th class="px-4 sm:px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thTicket">Ticket ID</th>
+                                <th class="px-4 sm:px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thCustomer">Customer</th>
+                                <th class="px-4 sm:px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thItem">Item Type</th>
+                                <th class="px-4 sm:px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thDate">Date In</th>
+                                <th class="px-4 sm:px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thAmount">Amount</th>
+                                <th class="px-4 sm:px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thStatus">Status</th>
+                                <th class="px-4 sm:px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider" data-i18n="thAction">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+                <div id="noResults" class="hidden text-center py-8 text-gray-500 font-medium" data-i18n="noResults">No matching records found.</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Data Storage Engine State
+        let loansData = [];
+        let txnsData = [];
+        
+        // Chart Engine Matrix Instances
+        let statusChartInstance = null;
+        let weightChartInstance = null;
+        let principalChartInstance = null;
+        let timelineChartInstance = null;
+        let revenueChartInstance = null;
+        
+        // Interactive Navigation State Variables
+        let showingOverdueOnly = false;
+        let currentTimelineView = 'year'; // Values: 'year' or 'month'
+        let selectedTimelineYear = "";
+        let selectedTimelineMonth = ""; // Value: 'YYYY-MM' when zooming in
+
+        // Dual-Language Localization Engine (Dictionary Core)
+        let currentLang = 'en';
+        const translations = {
+            en: {
+                appTitle: "Pawn Analytics System", appDesc: "Advanced Financial & Asset Insights.",
+                setupBtn: "⚙️ Setup Data Inputs", loanFileLabel: "1. Pawn Loans CSV", txnFileLabel: "2. Transactions CSV (Required for Full Ledger)",
+                processBtn: "Process Data", processing: "Processing...",
+                activeL: "Active Loans", activeP: "Total Active Principal", vaultW: "Total Vault Weight", collEff: "Collection Efficiency",
+                redL: "Redeemed Loans", redP: "Redeemed Principal",
+                monthlyIntTitle: "📅 Monthly Interest Earnings (Real Cash Flow)", selectMonth: "Select Month", realCashCol: "Real Cash Collected",
+                attentionTitle: "Attention Required", attentionDesc: "Quickly filter all pawns that have exceeded their due dates.",
+                showOverdue: "🚨 Show Overdue Pawns", clearOverdue: "✖ Clear Overdue Filter",
+                chronologicalTitle: "Disbursal vs. Redemptions (Timeline)", revenueProjTitle: "Accrued vs. Collected Revenue",
+                revenueDesc: "Pipeline comparison of pending flat projections against real cash flows",
+                timelineHint: "Click on any month to view daily granular data breakdown",
+                timelineDailyHint: "Viewing daily logs. Click 'Back to Year' to clear view filter",
+                statusDist: "Loan Book Distribution", inventoryWeight: "Inventory Weight (Kyat)", prinChart: "Outstanding vs Redeemed",
+                searchLabel: "Search Records", filterStatus: "Filter Status", filterItem: "Filter Item Type", sortData: "Sort Data By",
+                thTicket: "Ticket ID", thCustomer: "Customer", thItem: "Item Type", thDate: "Date In", thAmount: "Amount", thStatus: "Status", thAction: "Action",
+                noResults: "No matching records found.", close: "Close", viewDetails: "View Details", backBtn: "Back to Year"
+            },
+            my: {
+                appTitle: "အပေါင်ဆိုင် ခွဲခြမ်းစိတ်ဖြာမှုစနစ်", appDesc: "အဆင့်မြင့် ဘဏ္ဍာရေးနှင့် ပိုင်ဆိုင်မှု အချက်အလက်များ။",
+                setupBtn: "⚙️ ဒေတာထည့်သွင်းရန်", loanFileLabel: "၁။ အပေါင်စာရင်း CSV", txnFileLabel: "၂။ ငွေပေးငွေယူ CSV (စာရင်းအပြည့်အစုံအတွက် လိုအပ်သည်)",
+                processBtn: "ဒေတာလုပ်ဆောင်ရန်", processing: "လုပ်ဆောင်နေပါသည်...",
+                activeL: "လက်ရှိ အပေါင်များ", activeP: "စုစုပေါင်း ငွေရင်း (လက်ရှိ)", vaultW: "လက်ကျန် ရွှေအလေးချိန်", collEff: "ကောက်ခံမှု ထိရောက်မှု",
+                redL: "ရွေးပြီးသော အပေါင်များ", redP: "ရွေးပြီးသော ငွေရင်း",
+                monthlyIntTitle: "📅 လစဉ် အတိုးရငွေ (လက်ငင်း)", selectMonth: "လ ရွေးချယ်ရန်", realCashCol: "လက်ငင်းရရှိသော အတိုးငွေ",
+                attentionTitle: "အထူးသတိပြုရန်", attentionDesc: "ရွေးရက်ကျော်လွန်နေသော အပေါင်များကို အမြန်စီစစ်ပါ။",
+                showOverdue: "🚨 ရွေးရက်ကျော်များ ပြရန်", clearOverdue: "✖ စစ်ထုတ်ခြင်း ပယ်ဖျက်ရန်",
+                chronologicalTitle: "ထုတ်ချေးငွေ နှင့် ရွေးငွေ (အချိန်ဇယား)", revenueProjTitle: "ရရန်ရှိသော နှင့် ရရှိပြီးသော အတိုးငွေ",
+                revenueDesc: "မရရသေးသော အတိုးခန့်မှန်းချက်များနှင့် လက်ရှိရရှိပြီး အတိုးငွေ နှိုင်းယှဉ်ချက်",
+                timelineHint: "ရက်အလိုက်အသေးစိတ်ကြည့်ရန် သက်ဆိုင်ရာ လကွက်အား နှိပ်ပါ",
+                timelineDailyHint: "ရက်အလိုက်ကြည့်ရှုခြင်း။ မူလပုံစံသို့ပြန်သွားရန် 'Back to Year' ကိုနှိပ်ပါ",
+                statusDist: "အပေါင်စာရင်း အခြေအနေ", inventoryWeight: "ရွှေအလေးချိန် (ကျပ်)", prinChart: "ထုတ်ချေးငွေ နှင့် ရွေးငွေ နှိုင်းယှဉ်ချက်",
+                searchLabel: "ရှာဖွေရန်", filterStatus: "အခြေအနေအလိုက် ရှာရန်", filterItem: "ပစ္စည်းအမျိုးအစားအလိုက် ရှာရန်", sortData: "အစဉ်လိုက်စီရန်",
+                thTicket: "ဘောင်ချာနံပါတ်", thCustomer: "ဖောက်သည်", thItem: "ပစ္စည်းအမျိုးအစား", thDate: "ပေါင်သည့်ရက်", thAmount: "ငွေကျပ်", thStatus: "အခြေအနေ", thAction: "လုပ်ဆောင်ချက်",
+                noResults: "ကိုက်ညီသော ဒေတာ မရှိပါ။", close: "ပိတ်မည်", viewDetails: "အသေးစိတ်ကြည့်ရန်", backBtn: "နောက်သို့"
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'my' : 'en';
+            applyTranslations();
+            generateSummaryCards(); 
+            if(loansData.length > 0) { renderCharts(); applyFilters(); }
+        }
+
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[currentLang][key]) {
+                    if(el.tagName === 'INPUT' && el.type === 'button') el.value = translations[currentLang][key];
+                    else el.innerHTML = translations[currentLang][key];
+                }
+            });
+            let overdueBtn = document.getElementById('toggleOverdueBtn');
+            overdueBtn.innerHTML = showingOverdueOnly ? translations[currentLang].clearOverdue : translations[currentLang].showOverdue;
+            
+            // Adjust visual timeline state hints dynamically
+            const hintEl = document.getElementById('timelineHelpText');
+            if (hintEl) {
+                hintEl.innerText = currentTimelineView === 'year' ? translations[currentLang].timelineHint : translations[currentLang].timelineDailyHint;
+            }
+        }
+        
+        document.getElementById('langToggleBtn').addEventListener('click', toggleLanguage);
+
+        // Core Text Column Discovery Utilities
+        function getCol(row, keyword) {
+            if (!row) return "";
+            let key = Object.keys(row).find(k => k.toLowerCase().includes(keyword.toLowerCase()));
+            return key ? row[key] : "";
+        }
+
+        function parseCurrency(str) {
+            if (!str) return 0;
+            let val = parseFloat(String(str).replace(/,/g, '').replace(/[^\d.-]/g, ''));
+            return isNaN(val) ? 0 : val;
+        }
+
+        // Expanded Date Extraction Architecture supporting full drill down formats
+        function parseDateDetails(dateStr) {
+            if (!dateStr) return null;
+            dateStr = String(dateStr).trim();
+            
+            let y = "", m = "", d = "";
+            // Handles standard machine ISO structures
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                y = dateStr.substring(0, 4);
+                m = dateStr.substring(0, 7);
+                d = dateStr.substring(8, 10);
+                return { year: y, month: m, day: parseInt(d, 10).toString() };
+            }
+            
+            // Handles clean fallback structural splits
+            let parts = dateStr.split(/[./-]/);
+            if (parts.length === 3) {
+                if (parts[2].length === 4) { // Format: DD/MM/YYYY or MM/DD/YYYY
+                    y = parts[2];
+                    let p1 = parts[0].padStart(2, '0');
+                    let p2 = parts[1].padStart(2, '0');
+                    // Verify month index vs day bounds logically
+                    if (parseInt(p2, 10) <= 12) {
+                        m = y + '-' + p2;
+                        d = parseInt(p1, 10).toString();
+                    } else {
+                        m = y + '-' + p1;
+                        d = parseInt(p2, 10).toString();
+                    }
+                    return { year: y, month: m, day: d };
+                } else if (parts[0].length === 4) { // Format: YYYY/MM/DD
+                    y = parts[0];
+                    m = y + '-' + parts[1].padStart(2, '0');
+                    d = parseInt(parts[2], 10).toString();
+                    return { year: y, month: m, day: d };
+                }
+            }
+            return null;
+        }
+
+        function parseYearMonth(dateStr) {
+            let details = parseDateDetails(dateStr);
+            return details ? details.month : "";
+        }
+
+        // Myanmar Traditional Gold Mass Unit Parser Engine
+        function getWeightInYway(row) {
+            let k = parseFloat(getCol(row, 'Net (ကျပ်)')) || parseFloat(getCol(row, 'ကျပ်')) || 0;
+            let p = parseFloat(getCol(row, 'Net (ပဲ)')) || parseFloat(getCol(row, 'ပဲ')) || 0;
+            let y = parseFloat(getCol(row, 'Net (ရွေး)')) || parseFloat(getCol(row, 'ရွေး')) || 0;
+            let totalYway = (k * 128) + (p * 8) + y;
+            let explicitYway = parseFloat(getCol(row, 'ရွှေအလေးချိန်စု')) || 0;
+            return totalYway > 0 ? totalYway : explicitYway;
+        }
+
+        function formatWeightFromYway(yway) {
+            let k = Math.floor(yway / 128);
+            let rem = yway % 128;
+            let p = Math.floor(rem / 8);
+            let y = rem % 8;
+            return `${k}K, ${p}P, ${y.toFixed(1)}Y`;
+        }
+
+        // Risk Calculator
+        function getOverdueDetails(row) {
+            let status = getCol(row, 'Status').toLowerCase();
+            let overdueDays = parseFloat(getCol(row, 'Overdue_days')) || 0;
+            
+            if (!status.includes('active') || overdueDays <= 0) {
+                return { isOverdue: false, severity: '', label: getCol(row, 'Status'), classes: '' };
+            }
+            
+            if (overdueDays >= 1 && overdueDays <= 30) {
+                return { isOverdue: true, severity: 'yellow', label: `${overdueDays} Days Late 🟡`, classes: 'bg-yellow-100 text-yellow-800 border border-yellow-300 font-medium' };
+            } else if (overdueDays > 30 && overdueDays <= 90) {
+                return { isOverdue: true, severity: 'orange', label: `${overdueDays} Days Late 🟠`, classes: 'bg-orange-100 text-orange-800 border border-orange-400 font-semibold' };
+            } else {
+                return { isOverdue: true, severity: 'red', label: `CRITICAL: ${overdueDays} Days 🚨`, classes: 'bg-red-100 text-red-800 border border-red-400 font-bold animate-pulse' };
+            }
+        }
+
+        // Layout Inset File Target Bindings
+        document.getElementById('toggleUploadBtn').addEventListener('click', () => {
+            document.getElementById('uploadZone').classList.toggle('hidden');
+        });
+
+        document.getElementById('processBtn').addEventListener('click', () => {
+            const loansFile = document.getElementById('loansFile').files[0];
+            const txnsFile = document.getElementById('txnsFile').files[0];
+            const statusText = document.getElementById('uploadStatus');
+
+            if (!loansFile) {
+                statusText.textContent = "Please upload the Pawn Loans CSV file.";
+                statusText.classList.remove('hidden');
+                return;
+            }
+
+            statusText.classList.add('hidden');
+            document.getElementById('processBtn').innerText = translations[currentLang].processing;
+            
+            Papa.parse(loansFile, {
+                header: true, skipEmptyLines: true,
+                complete: function(results) {
+                    loansData = results.data.filter(row => getCol(row, 'Ticket_ID'));
+                    
+                    if(txnsFile) {
+                        Papa.parse(txnsFile, {
+                            header: true, skipEmptyLines: true,
+                            complete: function(txnResults) {
+                                txnsData = txnResults.data.filter(row => getCol(row, 'Txn_ID') || getCol(row, 'Ticket_ID'));
+                                finalizeProcessing();
+                            }
+                        });
+                    } else {
+                        txnsData = [];
+                        finalizeProcessing();
+                    }
+                }
+            });
+        });
+
+        function finalizeProcessing() {
+            document.getElementById('processBtn').innerText = translations[currentLang].processBtn;
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('uploadZone').classList.add('hidden');
+            document.getElementById('toggleUploadBtn').classList.remove('hidden');
+            
+            let today = new Date();
+            document.getElementById('monthPicker').value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+
+            // Initialize timeline year configuration filter values
+            initTimelineYearOptions();
+            buildDashboard();
+        }
+
+        function initTimelineYearOptions() {
+            let dynamicYears = new Set();
+            loansData.forEach(row => {
+                let dt = parseDateDetails(getCol(row, 'Pawn_date_in'));
+                if(dt && dt.year) dynamicYears.add(dt.year);
+            });
+            txnsData.forEach(txn => {
+                let dt = parseDateDetails(getCol(txn, 'Txn_date'));
+                if(dt && dt.year) dynamicYears.add(dt.year);
+            });
+
+            let sortedYears = Array.from(dynamicYears).sort().reverse();
+            const selectEl = document.getElementById('timelineYearSelect');
+            selectEl.innerHTML = '';
+            
+            if(sortedYears.length === 0) {
+                sortedYears.push(new Date().getFullYear().toString());
+            }
+            
+            sortedYears.forEach(yr => {
+                selectEl.appendChild(new Option(yr, yr));
+            });
+            selectedTimelineYear = selectEl.value;
+            
+            selectEl.addEventListener('change', (e) => {
+                selectedTimelineYear = e.target.value;
+                currentTimelineView = 'year';
+                document.getElementById('backToYearBtn').classList.add('hidden');
+                applyTranslations();
+                renderTimelineChart();
+            });
+        }
+
+        document.getElementById('backToYearBtn').addEventListener('click', () => {
+            currentTimelineView = 'year';
+            document.getElementById('backToYearBtn').classList.add('hidden');
+            applyTranslations();
+            renderTimelineChart();
+        });
+
+        function buildDashboard() {
+            populateItemTypeFilter();
+            generateSummaryCards();
+            renderCharts();
+            applyFilters();
+            calculateMonthlyInterest();
+        }
+
+        function populateItemTypeFilter() {
+            const filterEl = document.getElementById('itemTypeFilter');
+            filterEl.innerHTML = '<option value="">All Item Types</option>';
+            let typesSet = new Set();
+            loansData.forEach(row => {
+                let item = getCol(row, 'ပစ္စည်းအမျိုးအစားများ') || getCol(row, 'Item') || getCol(row, 'Item_Type');
+                if (item && item.trim() !== '') typesSet.add(item.trim());
+            });
+            typesSet.forEach(type => filterEl.appendChild(new Option(type, type.toLowerCase())));
+        }
+
+        function generateSummaryCards() {
+            let activeAmount = 0, redeemedAmount = 0, activeCount = 0, redeemedCount = 0;
+            let totalYwayInVault = 0;
+            let totalCollectedInterest = 0, totalOutstandingInterest = 0;
+
+            loansData.forEach(row => {
+                let status = getCol(row, 'Status').toLowerCase();
+                let amount = parseCurrency(getCol(row, 'Pawn_money_amount'));
+
+                totalCollectedInterest += parseCurrency(getCol(row, 'အတိုးပေးစုစုပေါင်း'));
+                totalOutstandingInterest += parseCurrency(getCol(row, 'လက်ရှိ ပေးရန်အတိုး (Flat)'));
+
+                if (status.includes('active')) {
+                    activeCount++;
+                    activeAmount += amount;
+                    totalYwayInVault += getWeightInYway(row);
+                } else if (status.includes('redeem')) {
+                    redeemedCount++;
+                    redeemedAmount += amount;
+                }
+            });
+
+            let totalAccrued = totalCollectedInterest + totalOutstandingInterest;
+            let collectionEfficiency = totalAccrued > 0 ? ((totalCollectedInterest / totalAccrued) * 100).toFixed(1) : 0;
+
+            const t = translations[currentLang];
+
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-sm text-slate-500 font-bold uppercase tracking-wider">${t.activeL}</p>
+                    <p class="text-3xl font-black text-blue-600 mt-1">${activeCount}</p>
+                </div>
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm">
+                    <p class="text-sm text-blue-800 font-bold uppercase tracking-wider">${t.activeP}</p>
+                    <p class="text-2xl font-black text-blue-700 mt-1">${activeAmount.toLocaleString()} Ks</p>
+                </div>
+                <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 shadow-sm">
+                    <p class="text-sm text-amber-800 font-bold uppercase tracking-wider">${t.vaultW}</p>
+                    <p class="text-2xl font-black text-amber-700 mt-1">${formatWeightFromYway(totalYwayInVault)}</p>
+                </div>
+                <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm">
+                    <p class="text-sm text-indigo-800 font-bold uppercase tracking-wider">${t.collEff}</p>
+                    <p class="text-3xl font-black text-indigo-700 mt-1">${collectionEfficiency}%</p>
+                </div>
+            `;
+
+            document.getElementById('secondarySummaryCards').innerHTML = `
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-sm text-slate-500 font-bold uppercase tracking-wider">${t.redL}</p>
+                    <p class="text-2xl font-black text-emerald-600 mt-1">${redeemedCount}</p>
+                </div>
+                <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm">
+                    <p class="text-sm text-emerald-800 font-bold uppercase tracking-wider">${t.redP}</p>
+                    <p class="text-2xl font-black text-emerald-700 mt-1">${redeemedAmount.toLocaleString()} Ks</p>
+                </div>
+            `;
+        }
+
+        document.getElementById('monthPicker').addEventListener('change', calculateMonthlyInterest);
+
+        function calculateMonthlyInterest() {
+            let selectedMonth = document.getElementById('monthPicker').value; 
+            let totalMonthlyInterest = 0;
+
+            txnsData.forEach(txn => {
+                if (parseYearMonth(getCol(txn, 'Txn_date')) === selectedMonth) {
+                    totalMonthlyInterest += parseCurrency(getCol(txn, 'Interest_paid') || getCol(txn, 'အတိုးပေးငွေ'));
+                }
+            });
+
+            document.getElementById('monthlyInterestResult').innerText = txnsData.length === 0 ? "No Txn Data" : totalMonthlyInterest.toLocaleString() + " Ks";
+        }
+
+        function renderCharts() {
+            // Build non-timeline structural analytics metrics
+            let statusCounts = {}, weightByItem = {};
+            let origPrin = 0, outPrin = 0, redPrin = 0;
+            let globalAccrued = 0, globalCollected = 0;
+
+            loansData.forEach(row => {
+                let status = getCol(row, 'Status').trim() || 'Unknown';
+                let item = (getCol(row, 'ပစ္စည်းအမျိုးအစားများ') || getCol(row, 'Item') || getCol(row, 'Item_Type') || 'Unknown').trim();
+                let yway = getWeightInYway(row);
+                let amt = parseCurrency(getCol(row, 'Pawn_money_amount'));
+                let out = parseCurrency(getCol(row, 'Outstanding') || getCol(row, 'Pawn_money_amount'));
+
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+                globalAccrued += parseCurrency(getCol(row, 'လက်ရှိ ပေးရန်အတိုး (Flat)'));
+                globalCollected += parseCurrency(getCol(row, 'အတိုးပေးစုစုပေါင်း'));
+
+                if (status.toLowerCase().includes('active')) {
+                    weightByItem[item] = (weightByItem[item] || 0) + yway;
+                    origPrin += amt;
+                    outPrin += out;
+                } else if (status.toLowerCase().includes('redeem')) {
+                    redPrin += amt;
+                }
+            });
+
+            if(statusChartInstance) statusChartInstance.destroy();
+            if(weightChartInstance) weightChartInstance.destroy();
+            if(principalChartInstance) principalChartInstance.destroy();
+            if(revenueChartInstance) revenueChartInstance.destroy();
+
+            // Status Distribution Donut
+            statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#94a3b8'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+            });
+
+            // Inventory Weight Donut
+            let itemLabels = Object.keys(weightByItem);
+            let itemWeightsInKyat = itemLabels.map(k => (weightByItem[k] / 128).toFixed(2));
+            weightChartInstance = new Chart(document.getElementById('weightChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: itemLabels,
+                    datasets: [{ data: itemWeightsInKyat, backgroundColor: ['#f59e0b', '#d97706', '#fbbf24', '#b45309', '#fcd34d'], borderWidth: 1, borderColor: '#fff' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+            });
+
+            // Principal Comparison Bar Chart
+            principalChartInstance = new Chart(document.getElementById('principalChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Original Active', 'Outstanding', 'Redeemed'],
+                    datasets: [{
+                        label: 'Amount (Ks)',
+                        data: [origPrin, outPrin, redPrin],
+                        backgroundColor: ['#60a5fa', '#f87171', '#34d399'],
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 11 } } } } }
+            });
+
+            // Revenue Projections Comparison Chart
+            revenueChartInstance = new Chart(document.getElementById('revenueChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Revenue Pipeline Balance'],
+                    datasets: [
+                        { label: 'Collected Cash Flow', data: [globalCollected], backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Accrued (Unrealized Paper)', data: [globalAccrued], backgroundColor: '#f59e0b', borderRadius: 4 }
+                    ]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }, 
+                    scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } } } 
+                }
+            });
+
+            // Build structural timeline visualization maps
+            renderTimelineChart();
+        }
+
+        // Deep-Zoom Drill Down Core Timeline Rendering Pipeline
+        function renderTimelineChart() {
+            if(timelineChartInstance) timelineChartInstance.destroy();
+
+            // Structure data mappings for selectable calculations
+            let monthsLabels = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+            let displayLabels = [];
+            let disbursalDataset = [];
+            let redemptionDataset = [];
+
+            if (currentTimelineView === 'year') {
+                // Initialize default 12 months array for selected filter year
+                displayLabels = monthsLabels.map(m => `${selectedTimelineYear}-${m}`);
+                let mapDisbursed = {}, mapRedeemed = {};
+                displayLabels.forEach(lbl => { mapDisbursed[lbl] = 0; mapRedeemed[lbl] = 0; });
+
+                loansData.forEach(row => {
+                    let dt = parseDateDetails(getCol(row, 'Pawn_date_in'));
+                    if (dt && dt.year === selectedTimelineYear) {
+                        mapDisbursed[dt.month] = (mapDisbursed[dt.month] || 0) + parseCurrency(getCol(row, 'Pawn_money_amount'));
+                    }
+                });
+
+                txnsData.forEach(txn => {
+                    let dt = parseDateDetails(getCol(txn, 'Txn_date'));
+                    if (dt && dt.year === selectedTimelineYear) {
+                        let cashIn = parseCurrency(getCol(txn, 'Principal_paid')) + parseCurrency(getCol(txn, 'Interest_paid') || getCol(txn, 'အတိုးပေးငွေ'));
+                        mapRedeemed[dt.month] = (mapRedeemed[dt.month] || 0) + cashIn;
+                    }
+                });
+
+                disbursalDataset = displayLabels.map(l => mapDisbursed[l]);
+                redemptionDataset = displayLabels.map(l => mapRedeemed[l]);
+
+            } else if (currentTimelineView === 'month') {
+                // Granular view zooming down into individual days of chosen target month
+                let maxDays = 31; 
+                let parts = selectedTimelineMonth.split('-');
+                let yearInt = parseInt(parts[0], 10);
+                let monthInt = parseInt(parts[1], 10);
+                maxDays = new Date(yearInt, monthInt, 0).getDate();
+
+                for(let d = 1; d <= maxDays; d++) {
+                    displayLabels.push(d.toString());
+                }
+
+                let dailyDisbursed = Array(maxDays).fill(0);
+                let dailyRedeemed = Array(maxDays).fill(0);
+
+                loansData.forEach(row => {
+                    let dt = parseDateDetails(getCol(row, 'Pawn_date_in'));
+                    if (dt && dt.month === selectedTimelineMonth) {
+                        let dIdx = parseInt(dt.day, 10) - 1;
+                        if (dIdx >= 0 && dIdx < maxDays) {
+                            dailyDisbursed[dIdx] += parseCurrency(getCol(row, 'Pawn_money_amount'));
+                        }
+                    }
+                });
+
+                txnsData.forEach(txn => {
+                    let dt = parseDateDetails(getCol(txn, 'Txn_date'));
+                    if (dt && dt.month === selectedTimelineMonth) {
+                        let dIdx = parseInt(dt.day, 10) - 1;
+                        if (dIdx >= 0 && dIdx < maxDays) {
+                            let cashIn = parseCurrency(getCol(txn, 'Principal_paid')) + parseCurrency(getCol(txn, 'Interest_paid') || getCol(txn, 'အတိုးပေးငွေ'));
+                            dailyRedeemed[dIdx] += cashIn;
+                        }
+                    }
+                });
+
+                disbursalDataset = dailyDisbursed;
+                redemptionDataset = dailyRedeemed;
+            }
+
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            timelineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: displayLabels,
+                    datasets: [
+                        { label: 'Disbursals (Outflow)', data: disbursalDataset, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.05)', fill: true, tension: 0.25, pointRadius: 4, pointHoverRadius: 6 },
+                        { label: 'Redemptions (Inflow)', data: redemptionDataset, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)', fill: true, tension: 0.25, pointRadius: 4, pointHoverRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                        x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+                    },
+                    onClick: (e, elements) => {
+                        // Click chart asset point targets to trigger granular zoom logic maps
+                        if (currentTimelineView === 'year' && elements.length > 0) {
+                            const elementIndex = elements[0].index;
+                            const targetMonthStr = displayLabels[elementIndex];
+                            
+                            currentTimelineView = 'month';
+                            selectedTimelineMonth = targetMonthStr;
+                            
+                            document.getElementById('backToYearBtn').classList.remove('hidden');
+                            applyTranslations();
+                            renderTimelineChart();
+                        }
+                    }
+                }
+            });
+        }
+
+        // Filter Matrix Engine Handlers
+        document.getElementById('toggleOverdueBtn').addEventListener('click', function() {
+            showingOverdueOnly = !showingOverdueOnly;
+            let t = translations[currentLang];
+            if (showingOverdueOnly) {
+                this.classList.replace('bg-red-50', 'bg-red-600');
+                this.classList.replace('text-red-600', 'text-white');
+                this.innerText = t.clearOverdue;
+            } else {
+                this.classList.replace('bg-red-600', 'bg-red-50');
+                this.classList.replace('text-white', 'text-red-600');
+                this.innerText = t.showOverdue;
+            }
+            applyFilters();
+        });
+
+        ['searchInput', 'statusFilter', 'itemTypeFilter', 'sortByInput'].forEach(id => {
+            document.getElementById(id).addEventListener(id === 'searchInput' ? 'keyup' : 'change', applyFilters);
+        });
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const itemTypeFilter = document.getElementById('itemTypeFilter').value;
+            const sortBy = document.getElementById('sortByInput').value;
+
+            let filteredData = loansData.filter(row => {
+                let textMatch = Object.values(row).join(' ').toLowerCase().includes(searchTerm);
+                let statusMatch = statusFilter === "" || getCol(row, 'Status').toLowerCase().includes(statusFilter);
+                let rowItem = (getCol(row, 'ပစ္စည်းအမျိုးအစားများ') || getCol(row, 'Item') || getCol(row, 'Item_Type')).toLowerCase();
+                let itemMatch = itemTypeFilter === "" || rowItem === itemTypeFilter;
+                let quickOverdueMatch = showingOverdueOnly ? getOverdueDetails(row).isOverdue : true;
+
+                return textMatch && statusMatch && itemMatch && quickOverdueMatch;
+            });
+
+            if (sortBy !== "") {
+                filteredData.sort((a, b) => {
+                    let getNum = (obj, col) => parseCurrency(getCol(obj, col));
+                    if (sortBy === 'ticket-asc') return getCol(a, 'Ticket_ID').localeCompare(getCol(b, 'Ticket_ID'), undefined, {numeric: true});
+                    if (sortBy === 'ticket-desc') return getCol(b, 'Ticket_ID').localeCompare(getCol(a, 'Ticket_ID'), undefined, {numeric: true});
+                    if (sortBy === 'date-newest') return new Date(getCol(b, 'Pawn_date_in')) - new Date(getCol(a, 'Pawn_date_in'));
+                    if (sortBy === 'date-oldest') return new Date(getCol(a, 'Pawn_date_in')) - new Date(getCol(b, 'Pawn_date_in'));
+                    if (sortBy === 'amount-highest') return getNum(b, 'Pawn_money_amount') - getNum(a, 'Pawn_money_amount');
+                    if (sortBy === 'amount-lowest') return getNum(a, 'Pawn_money_amount') - getNum(b, 'Pawn_money_amount');
+                    if (sortBy === 'overdue-highest') return (parseFloat(getCol(b, 'Overdue_days')) || 0) - (parseFloat(getCol(a, 'Overdue_days')) || 0);
+                    return 0;
+                });
+            }
+            renderTable(filteredData);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            document.getElementById('noResults').classList.toggle('hidden', data.length !== 0);
+            let t = translations[currentLang];
+
+            data.forEach((row) => {
+                let status = getCol(row, 'Status');
+                let overdueDetails = getOverdueDetails(row);
+
+                let statusColor = "bg-slate-100 text-slate-700";
+                if(status.toLowerCase().includes('active')) statusColor = "bg-blue-100 text-blue-800";
+                if(status.toLowerCase().includes('redeem')) statusColor = "bg-emerald-100 text-emerald-800";
+                if(overdueDetails.isOverdue) statusColor = overdueDetails.classes;
+
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">${getCol(row, 'Ticket_ID')}</td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-slate-600">${getCol(row, 'ဖောက်သည်အမည်') || getCol(row, 'Name') || '-'}</td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-slate-600"><span class="bg-slate-100 px-2 py-1 rounded text-xs font-semibold text-slate-700">${getCol(row, 'ပစ္စည်းအမျိုးအစားများ') || getCol(row, 'Item') || '-'}</span></td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-slate-500">${getCol(row, 'Pawn_date_in')}</td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-700">${parseCurrency(getCol(row, 'Pawn_money_amount')).toLocaleString()} Ks</td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 rounded-full ${statusColor}">${overdueDetails.isOverdue ? overdueDetails.label : status}</span>
+                        </td>
+                        <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-center text-sm">
+                            <button onclick="openModal('${getCol(row, 'Ticket_ID')}')" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-blue-600 transition shadow-sm">${t.viewDetails}</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+
+        // Advanced Portfolio Analytics Ledger Modal Builder
+        function openModal(ticketId) {
+            const row = loansData.find(r => getCol(r, 'Ticket_ID') === ticketId);
+            if(!row) return;
+
+            document.getElementById('modalTitle').innerText = `Ticket Analysis: ${ticketId}`;
+
+            let yway = getWeightInYway(row);
+            let amountNum = parseCurrency(getCol(row, 'Pawn_money_amount'));
+            let ltvStr = yway > 0 ? Math.round(amountNum / (yway / 128)).toLocaleString() + ' Ks/Kyat' : 'Data Missing';
+
+            let pawnTxns = txnsData.filter(t => getCol(t, 'Ticket_ID') === ticketId);
+            let totalPawnInterest = pawnTxns.reduce((sum, t) => sum + parseCurrency(getCol(t, 'Interest_paid') || getCol(t, 'အတိုးပေးငွေ')), 0);
+            
+            let txnHtml = pawnTxns.length === 0 ? `<tr><td colspan="4" class="py-4 text-center text-red-500 text-xs">(Requires Transactions CSV for ledger history)</td></tr>` : 
+                pawnTxns.map(t => `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                        <td class="py-2 px-1 text-slate-600">${getCol(t, 'Txn_date')}</td>
+                        <td class="py-2 px-1 font-semibold text-slate-700">${getCol(t, 'Txn_type')}</td>
+                        <td class="py-2 px-1 text-emerald-600 font-medium">${getCol(t, 'Principal_paid') || '-'}</td>
+                        <td class="py-2 px-1 text-blue-600 font-medium">${getCol(t, 'Interest_paid') || '-'}</td>
+                    </tr>
+                `).join('');
+
+            let customerId = getCol(row, 'ဖောက်သည် ID') || getCol(row, 'Customer_ID');
+            let custName = getCol(row, 'ဖောက်သည်အမည်') || getCol(row, 'Name');
+            let relatedLoans = loansData.filter(r => {
+                let rId = getCol(r, 'ဖောက်သည် ID') || getCol(r, 'Customer_ID');
+                let rName = getCol(r, 'ဖောက်သည်အမည်') || getCol(r, 'Name');
+                return (customerId && rId === customerId) || (custName && rName === custName);
+            });
+            let custActiveLoans = relatedLoans.filter(r => getCol(r, 'Status').toLowerCase().includes('active')).length;
+            let custTotalDebt = relatedLoans.reduce((sum, r) => {
+                if(getCol(r, 'Status').toLowerCase().includes('active')) return sum + parseCurrency(getCol(r, 'Outstanding') || getCol(r, 'Pawn_money_amount'));
+                return sum;
+            }, 0);
+
+            let overdueDetails = getOverdueDetails(row);
+            let overdueMarkup = overdueDetails.isOverdue ? `<span class="text-red-600 font-black uppercase tracking-wider">${overdueDetails.label}</span>` : `<span class="text-green-600 font-bold">On Track</span>`;
+
+            const contentHtml = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 border-b pb-2">Customer Profile</h4>
+                            <div class="space-y-2">
+                                <p class="text-sm"><span class="text-slate-500 w-20 inline-block">Name:</span> <span class="font-bold text-slate-800">${custName || '-'}</span></p>
+                                <p class="text-sm"><span class="text-slate-500 w-20 inline-block">ID / Phone:</span> <span class="font-medium text-slate-800">${customerId || getCol(row, 'ဖုန်းနံပါတ်') || '-'}</span></p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-200 bg-white p-3 rounded shadow-sm">
+                                <p class="text-xs font-bold text-indigo-500 uppercase mb-2">Portfolio Standing</p>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-slate-600">Total Active Items:</span>
+                                    <span class="font-bold">${custActiveLoans}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-slate-600">Total Account Risk:</span>
+                                    <span class="font-bold text-red-600">${custTotalDebt.toLocaleString()} Ks</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 border-b pb-2">Timeline Analytics</h4>
+                            <div class="space-y-3">
+                                <div><p class="text-xs text-slate-500 mb-0.5">Date In</p><p class="text-sm font-bold">${getCol(row, 'Pawn_date_in') || '-'}</p></div>
+                                <div><p class="text-xs text-slate-500 mb-0.5">Due Date</p><p class="text-sm font-bold">${getCol(row, 'Due_date') || '-'}</p></div>
+                                <div><p class="text-xs text-slate-500 mb-0.5">Risk Flag</p><p class="text-sm">${overdueMarkup}</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col justify-center">
+                            <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3 border-b border-blue-200 pb-2 flex justify-between">
+                                <span>Financial Details</span>
+                                <span class="text-blue-600 font-bold bg-blue-100 px-2 py-0.5 rounded">Status: ${getCol(row, 'Status')}</span>
+                            </h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-xs text-blue-800 opacity-70 mb-1">Original Loan</p>
+                                    <p class="text-base sm:text-lg font-bold text-blue-900">${getCol(row, 'Pawn_money_amount') || '-'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-blue-800 opacity-70 mb-1">Outstanding Principal</p>
+                                    <p class="text-base sm:text-lg font-black text-red-600">${getCol(row, 'Outstanding') || getCol(row, 'Pawn_money_amount') || '-'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-blue-800 opacity-70 mb-1">Asset Weight</p>
+                                    <p class="text-sm font-bold text-amber-600">${formatWeightFromYway(yway)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-blue-800 opacity-70 mb-1">Loan-To-Value (LTV)</p>
+                                    <p class="text-sm font-bold text-indigo-600">${ltvStr}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 border-b pb-2 flex justify-between items-end">
+                                <span>Action Ledger</span>
+                                <span class="text-[10px] text-slate-400">Total Ledger Int: ${totalPawnInterest.toLocaleString()} Ks</span>
+                            </h4>
+                            <div class="max-h-40 overflow-y-auto custom-scroll pr-2">
+                                <table class="w-full text-xs text-left">
+                                    <thead class="bg-slate-50 sticky top-0">
+                                        <tr>
+                                            <th class="py-2 px-1 font-semibold text-slate-500">Date</th>
+                                            <th class="py-2 px-1 font-semibold text-slate-500">Action</th>
+                                            <th class="py-2 px-1 font-semibold text-slate-500">Prin. Paid</th>
+                                            <th class="py-2 px-1 font-semibold text-slate-500">Int. Paid</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${txnHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</h4>
+                    <p class="text-sm text-slate-600 bg-gray-50 p-3 rounded border border-gray-200 italic">${getCol(row, 'မှတ်ချက်') || getCol(row, 'Notes') || 'No additional notes recorded.'}</p>
+                </div>
+            `;
+
+            document.getElementById('modalContent').innerHTML = contentHtml;
+            document.getElementById('pawnModal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('pawnModal').classList.add('hidden'); }
+        document.getElementById('pawnModal').addEventListener('click', function(e) { if(e.target === this) closeModal(); });
+
+        // Initialize translations mapping configurations automatically on launch
+        applyTranslations();
+    </script>
+</body>
+</html>
