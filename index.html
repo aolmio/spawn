@@ -365,10 +365,27 @@ input[type="file"]::file-selector-button:hover {
 .kpi-card.indigo .kpi-value { color: #4f46e5; }
 [data-theme="dark"] .kpi-card.indigo .kpi-value { color: #a5b4fc; }
 
+.kpi-card.danger { border-color: rgba(224,49,49,0.3); }
+.kpi-card.danger .kpi-label { color: var(--red-600); }
+.kpi-card.danger .kpi-card-accent { background: var(--red-500); opacity: 0.1; }
+[data-theme="dark"] .kpi-card.danger { border-color: rgba(250,82,82,0.3); }
+[data-theme="dark"] .kpi-card.danger .kpi-label { color: var(--red-400); }
+
+.kpi-card.success { border-color: rgba(43,138,62,0.3); }
+.kpi-card.success .kpi-label { color: var(--green-600); }
+.kpi-card.success .kpi-card-accent { background: var(--green-500); opacity: 0.1; }
+[data-theme="dark"] .kpi-card.success { border-color: rgba(16,185,129,0.3); }
+[data-theme="dark"] .kpi-card.success .kpi-label { color: var(--green-400); }
+
 .kpi-row-2 {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;
 }
 @media (min-width: 900px) { .kpi-row-2 { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+
+.kpi-row-3 {
+  display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px;
+}
+@media (min-width: 640px) { .kpi-row-3 { grid-template-columns: 1fr 1fr 1fr; } }
 
 .cashflow-row {
   display: grid; grid-template-columns: 1fr;
@@ -1002,6 +1019,7 @@ tbody tr:hover .btn-view { opacity: 1; }
         <div>
           <div class="kpi-grid" id="summaryCards"></div>
           <div class="kpi-row-2" id="secondarySummaryCards"></div>
+          <div class="kpi-row-3" id="riskSummaryCards"></div>
         </div>
       </div>
 
@@ -1381,6 +1399,7 @@ function generateSummaryCards() {
   let activeAmount = 0, redeemedAmount = 0, activeCount = 0, redeemedCount = 0;
   let totalYwayInVault = 0, totalCollectedInterest = 0, totalOutstandingInterest = 0;
   let collectedActive = 0, collectedRedeemed = 0, accruedActive = 0, accruedRedeemed = 0;
+  let overdueCount = 0, overdueAmount = 0, onTrackCount = 0;
 
   loansData.forEach(row => {
     let status = getCol(row, 'Status').toLowerCase();
@@ -1394,6 +1413,14 @@ function generateSummaryCards() {
     if (status.includes('active'))  { 
       activeCount++;   activeAmount += amount; totalYwayInVault += getWeightInYway(row); 
       collectedActive += rowCollected; accruedActive += rowAccrued;
+      
+      let od = getOverdueDetails(row);
+      if (od.isOverdue) {
+        overdueCount++;
+        overdueAmount += amount;
+      } else {
+        onTrackCount++;
+      }
     }
     if (status.includes('redeem'))  { 
       redeemedCount++; redeemedAmount += amount; 
@@ -1458,6 +1485,26 @@ function generateSummaryCards() {
          <div class="kpi-breakdown-row"><span>Active Accounts</span> <span>${accruedActive.toLocaleString()} Ks</span></div>
          <div class="kpi-breakdown-row"><span>Redeemed Accounts</span> <span>${accruedRedeemed.toLocaleString()} Ks</span></div>
       </div>
+    </div>
+  `;
+
+  document.getElementById('riskSummaryCards').innerHTML = `
+    <div class="kpi-card success">
+      <div class="kpi-card-accent"></div>
+      <div class="kpi-label">On Track Tickets</div>
+      <div class="kpi-value">${onTrackCount.toLocaleString()}</div>
+      <div class="kpi-sub">Active & within terms</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">Overdue Tickets</div>
+      <div class="kpi-value">${overdueCount.toLocaleString()}</div>
+      <div class="kpi-sub">Exceeded due date</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-card-accent"></div>
+      <div class="kpi-label">Overdue Principal</div>
+      <div class="kpi-value">${(overdueAmount/1000000).toFixed(1)}<span class="unit">M Ks</span></div>
+      <div class="kpi-sub">${overdueAmount.toLocaleString()} Ks at risk</div>
     </div>
   `;
 }
